@@ -1,0 +1,110 @@
+RuleScribe – A Discord Bot for D&D 5e Lookups & Dice Rolling
+RuleScribe is a lightweight Python-based Discord bot designed to streamline 5e gameplay. It provides fast rule and spell lookups using the Open5e API and includes a flexible dice roller that supports multiple dice, error handling, and structured responses.
+
+This project uses:
+Python 3.13
+discord.py
+aiohttp (async API calls)
+python-dotenv (token management)
+
+Features
+Spell & Rule Lookup
+Fetches spell or rules text from the Open5e API and returns a formatted, single-message response with:
+Spell Name
+Spell Level
+Range
+Components (V/S/M, material details, consumed components)
+Ritual / Concentration
+Cast Time
+Duration
+Saving Throw / Attack Roll
+Damage
+Shape / Area of Effect
+Target Count & Target Type
+Spell Description (truncated to avoid spam)
+All fields are normalized and cleaned automatically (string-to-bool, extracting level numbers, formatting component sets, etc.).
+
+Dice Rolling
+Supports multiple dice formats including:
+!roll 4d6 → rolls 4d6
+Proper error handling for invalid formats
+Clear display of rolls + totals
+Easily extendable for modifiers or advanced D&D dice rules
+
+Asynchronous API Handling
+All Open5e API interactions use:
+aiohttp.ClientSession()
+ensuring the bot stays responsive while fetching data.
+
+Data Normalization
+Incoming JSON from Open5e is messy.
+RuleScribe automatically cleans:
+Components → VSM, VS, VM, etc.
+Ritual / Concentration → Yes/No
+Saving throws → uppercase or N/A
+Area shapes and sizes
+Spell levels → 1st-level, 2nd-level, Cantrip, etc.
+Material requirements (cost, consumed/not consumed)
+
+Setup Instructions
+1. Clone / Download the Project
+git clone https://github.com/RandyRadagast/RuleScribe
+
+cd rulescribe
+
+2. Create a Virtual Environment
+Windows
+python -m venv venv
+venv\Scripts\activate
+
+3. Install Dependencies
+pip install -U discord.py aiohttp python-dotenv
+
+4. Create a .env file inside the project folder:
+DISCORD_TOKEN=your-bot-token-goes-here
+
+5. Enable Privileged Intents
+Go to:
+https://discord.com/developers/applications
+Your Application → Bot → Privileged Gateway Intents
+Enable: 'MESSAGE CONTENT INTENT'
+Save changes.
+
+6. Run the Bot
+python bot.py
+
+
+Commands
+!roll <NdM>
+Rolls N dice of size M.
+Examples:
+!roll 1d20
+!roll 4d6
+Invalid formats are caught and return descriptive errors.
+
+!rule <query>
+Searches Open5e rules.
+Examples:
+!rule grapple
+!rule prone
+
+Returns the first matching rule result.
+
+!spell <query>
+Fetches and formats a spell entry with all metadata cleaned and displayed neatly.
+Example:
+!spell fireball
+!spell animate dead
+
+Error Handling
+All user input is wrapped in try/except blocks
+API failures send friendly messages to Discord
+Bot logs internal errors to console, NOT to users
+Invalid dice formats return guidance instead of crashing
+Spell/rule lookups fallback gracefully when data is missing
+
+License
+
+This project is free for personal and community use.
+RuleScribe uses content provided through API from Open5e.
+Content provided by Open5e is owned by WOTC
