@@ -12,7 +12,7 @@ import re
 import logging
 
 logging.basicConfig(level=logging.INFO,
-    format= '%(asctime)s [%(levelness)s] %(name)s: %(message)s',
+    format= '%(asctime)s [%(levelname)s] %(name)s: %(message)s',
     datefmt="%Y-%m-%d %H:%M:%S",
     filename = "bot.log",
     filemode = "a"
@@ -47,19 +47,6 @@ def format_spell(spell: dict) -> str:
     shape_size = spell.get("shape_size")
     shape_size_unit = spell.get("shape_size_unit") or ""
     description = spell.get("desc") or ""
-
-
-    #Spell level text
-    # if level == 0:
-    #     spell_level_text = "Cantrip"
-    # elif level == 1:
-    #     spell_level_text = "1st-level"
-    # elif level == 2:
-    #     spell_level_text = "2nd-level"
-    # elif level == 3:
-    #     spell_level_text = "3rd-level"
-    # else:
-    #     spell_level_text = f"{level}th-level"
 
     # Components: V / S / M → VSM, VM, SM etc.
     components = []
@@ -172,7 +159,7 @@ async def on_ready():
 # @bot.command(name='rshelp')
 # async def rshelp(ctx, command = str):
 
-#error catch-most failure
+#error catch-most failures
 @bot.event
 async def on_command_error(ctx, error):
     logging.error(f"Command error in {ctx.command}: {error}")
