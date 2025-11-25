@@ -18,6 +18,9 @@ logging.basicConfig(level=logging.INFO,
     filemode = "a"
 )
 
+#Misc
+DEBUG = False
+
 #load token
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -171,6 +174,24 @@ async def ping(ctx):
     await ctx.send('pong')
     logging.info('Ping ran successfully')
 
+#Debug mode
+@bot.command()
+async def debug_on(ctx):
+    logging.info('Debug on')
+    await ctx.send('Debug on')
+    global DEBUG
+    DEBUG = True
+@bot.command()
+async def debug_off(ctx):
+    logging.info('Debug off')
+    await ctx.send('Debug off')
+    global DEBUG
+    DEBUG = False
+
+#Debug code for copy-paste
+# if DEBUG: logging.debug(json.dumps(#######, indent=4))
+
+
 #dice roller
 @bot.command(name='roll')
 async def roll(ctx, dice: str):
@@ -216,11 +237,17 @@ async def rule(ctx, *, query: str):
     await ctx.send(f'rules for {name} are: {description} rule.'.format(name=name, description=description))
     logging.info(f'Called condition {name} successfully.')
 
+
+
+
+
 #spell lookup, this may get complicated...
-@bot.command(name = 'spell')
+@bot.command(name='spell')
 async def spell(ctx, *, query: str):
     await ctx.send('Querying spell rules...')
     url = 'https://api.open5e.com/spells/?search=' + query
+    logging.info(f'Querying {query} from Open5e API.')
+
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             if response.status != 200:
@@ -228,14 +255,28 @@ async def spell(ctx, *, query: str):
                 logging.exception(response)
                 return
             data = await response.json()
-    results = data['results']
+
+    # -----------------------------------------------------
+    # SAVE RAW RESPONSE TO FILE
+    # -----------------------------------------------------
+    import json
+    with open("raw_spell.json", "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+
+    logging.info("Wrote raw API response to raw_spell.json")
+    # -----------------------------------------------------
+
+    results = data.get('results', [])
+    if DEBUG: logging.debug(json.dumps(results, indent=4))
     if not results:
         await ctx.send('No results found. Please verify spelling/format and try again.')
+        logging.info(f'No results found for: {query}.')
         return
+
     spell = results[0]
     message = format_spell(spell)
     await ctx.send(message)
-    logging.info(f'Called spell {spell["name"]} successfully.')
+    logging.info(f'Queried {query} successfully as {spell.get('name')}.')
 
 
 bot.run(TOKEN)
