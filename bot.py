@@ -465,7 +465,7 @@ async def shutdown(ctx):
 
 @bot.command(name='update')
 async def update(ctx):
-    if ctx.author.id not in ADMIN_IDS and not await bot.is_owner(ctx.author):
+    if ctx.author.id not in ADMIN_IDS or not await bot.is_owner(ctx.author):
         await ctx.send('You are not authorized to do that Tech Priest.')
         return
     await ctx.send('Convening with the Source...')
