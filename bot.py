@@ -391,7 +391,8 @@ async def spell(ctx, *, query: str):
     spell = results[0]
     message = format_spell(spell)
     await ctx.send(message)
-    logging.info(f'Queried {query} successfully as {spell.get('name')}.')
+    spellName = spell.get('name')
+    logging.info(f"Queried {query} successfully as {spellName}.")
 
 
 #character data save TBA
