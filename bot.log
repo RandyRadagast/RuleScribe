@@ -146,3 +146,15 @@ discord.ext.commands.errors.CommandNotFound: Command "weapon" is not found
 2025-12-01 14:48:19 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: c7db6cb399a1d5f4bc37b0ad260b3f94).
 2025-12-01 14:48:21 [INFO] root: We have logged in as RuleScribe#3969
 2025-12-01 14:48:21 [INFO] root: Here Be Dragons.
+2025-12-01 15:31:07 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2025-12-01 15:31:07 [INFO] discord.client: logging in using static token
+2025-12-01 15:31:08 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: 3f35ab8f32828989cff93f735eac3042).
+2025-12-01 15:31:10 [INFO] root: We have logged in as RuleScribe#3969
+2025-12-01 15:31:10 [INFO] root: Here Be Dragons.
+2025-12-01 15:31:19 [INFO] root: Pulling update from Github
+2025-12-01 15:31:20 [INFO] root: Restarting RuleScribe
+2025-12-01 15:32:47 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2025-12-01 15:32:47 [INFO] discord.client: logging in using static token
+2025-12-01 15:32:48 [INFO] discord.gateway: Shard ID None has connected to Gateway (Session ID: d0be338b6151d4f0fbc6b50f0ab355c1).
+2025-12-01 15:32:50 [INFO] root: We have logged in as RuleScribe#3969
+2025-12-01 15:32:50 [INFO] root: Here Be Dragons.

@@ -300,12 +300,22 @@ async def on_command_error(ctx, error):
 
 
 @bot.command(name='rshelp')
-async def rshelp(ctx, rshelp = str):
-    if rshelp == 'roll':
+async def rshelp(ctx, topic: str):
+    if topic == 'roll':
         await ctx.send("The roll function allows for rolling of dice in the following format: Number of dice + d + Sides on dice. Example follows:")
         await ctx.send('!roll 1d20')
-    elif rshelp == 'ping':
+    elif topic == 'ping':
         await ctx.send("The ping function allows for ping to the bot. it will pong in response.")
+    elif topic == 'addchar':
+        await ctx.send('addchar function adds a player character to the database. to run use `!addchar (Character Name) (Class)`')
+    elif topic == 'condition':
+        await ctx.send('Condition function returns a brief description of the condition. To run use: `!condition (condition query)`')
+    elif topic == 'spell':
+        await ctx.send('Spell function returns most descriptors of a spell. To run use: `!spell (spell query)`')
+    elif topic == 'weapon':
+        await ctx.send('Weapon function returns weapon damage, ranges, and properties. To run use: `!weapon (Weapon Name)`')
+    else:
+        await ctx.send('Unknown Topic or nonexistent function.')
 
 #error catch-most failures
 @bot.event
@@ -446,6 +456,19 @@ async def shutdown(ctx):
     await ctx.send("Shutting down the Machine Spirit…")
     logging.info('Shutdown complete.')
     await bot.close()
+
+@bot.command(name='update')
+async def update(ctx):
+    if ctx.author.id not in ADMIN_IDS and not await bot.is_owner(ctx.author):
+        await ctx.send('You are not authorized to do that Tech Priest.')
+        return
+    await ctx.send('Convening with the Source...')
+    logging.info('Pulling update from Github')
+
+    os.system('git pull')
+    await ctx.send('Machine Spirit restarting...')
+    logging.info('Restarting RuleScribe')
+    os.system('sudo systemctl restart rulescribe')
 
 if __name__ == "__main__":
     init_db()
