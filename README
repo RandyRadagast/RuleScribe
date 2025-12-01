@@ -4,32 +4,136 @@ RuleScribe is a lightweight Python-based Discord bot designed to streamline 5e g
 This project uses:
 Python 3.13
 discord.py
-aiohttp (async API calls)
+aiohttp (async HTTP requests)
 python-dotenv (token management)
+sqlite3 (built-in, for character storage)
+logging (writes to bot.log)
 
 Features
-Spell & Rule Lookup
-Fetches spell or rules text from the Open5e API and returns a formatted, single-message response with:
-Spell Name
-Spell Level
-Range
-Components (V/S/M, material details, consumed components)
-Ritual / Concentration
-Cast Time
-Duration
-Saving Throw / Attack Roll
-Damage
-Shape / Area of Effect
-Target Count & Target Type
-Spell Description (truncated to avoid spam)
-All fields are normalized and cleaned automatically (string-to-bool, extracting level numbers, formatting component sets, etc.).
 
-Dice Rolling
-Supports multiple dice formats including:
-!roll 4d6 → rolls 4d6
-Proper error handling for invalid formats
-Clear display of rolls + totals
-Easily extendable for modifiers or advanced D&D dice rules
+Spell Lookup (!spell)
+Looks up spells from the Open5e API and returns a cleaned, single-message summary with:
+Spell name and level
+Target type and count
+Range
+Ritual and concentration flags
+Casting time and duration
+Components (V/S/M) and material details (cost, consumed, etc.)
+Saving throw and attack roll info
+Damage and damage types
+Shape / area information
+Description (trimmed to avoid overly long messages)
+
+The format_spell helper normalizes and formats the API response so it is easier to read in Discord.
+
+Condition Lookup (!condition)
+Looks up D&D 5e conditions:
+!condition grappled
+!condition prone
+Returns the first matching result from Open5e and sends the name and description to the channel. If nothing is found, the bot reports that no results were found.
+
+Weapon Lookup (!weapon)
+Looks up weapons from the Open5e API:
+!weapon longsword
+!weapon longbow
+For the first matching weapon, the bot reports:
+
+Name
+Damage dice and damage type
+Range / long range or melee indication
+Properties list (formatted as a comma-separated string)
+
+Dice Rolling (!roll)
+Rolls dice in a simple NdM format:
+!roll 1d20
+!roll 4d6
+
+Behavior:
+Validates the format with a regular expression
+Rolls the requested number of dice
+Sends the total and logs the action
+On invalid input, sends a simple guidance message instead of crashing
+
+Character Storage (!addchar)
+Stores basic D&D character data in a local SQLite database (PlayerCharacters.db).
+Supported classes are currently limited to:
+
+cleric, ranger, paladin, barbarian, warlock, artificer, rogue
+
+Usage:
+!addchar <Name> <Class>
+
+Example:
+!addchar Arannis ranger
+
+The bot then prompts the user to reply with:
+level STR DEX CON INT WIS CHA
+
+Example reply:
+3 16 14 12 10 13 8
+
+If the class name is not in the allowed list, or the user provides bad input (wrong number of values or non-numeric stats), the bot sends an error message and does not write to the database.
+Characters are stored per user by Discord user ID, not username, so renames do not break ownership.
+
+
+Character Database Schema
+On startup, init_db() ensures the following table exists in PlayerCharacters.db:
+CREATE TABLE IF NOT EXISTS characters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    character_name TEXT NOT NULL,
+    class_name TEXT NOT NULL,
+    level INTEGER NOT NULL,
+    str_score INTEGER NOT NULL,
+    dex_score INTEGER NOT NULL,
+    con_score INTEGER NOT NULL,
+    int_score INTEGER NOT NULL,
+    wis_score INTEGER NOT NULL,
+    cha_score INTEGER NOT NULL
+);
+
+This allows future expansion into features like:
+
+Listing characters
+Validating feats and weapons against stats
+More detailed character tracking
+Currently, the implemented command is !addchar.
+General Info and Help (!info, !rshelp)
+
+!info
+Sends a brief description of RuleScribe and lists available commands (character add/remove, dice, spell, weapon, condition).
+
+!rshelp
+Currently supports basic help for some commands when you pass a keyword like roll or ping.
+
+Ping (!ping)
+Simple test command:
+
+!ping
+
+The bot replies with pong and logs the event. Super fun.
+
+
+Error Handling and Admin Alerts
+
+The bot uses on_command_error to:
+Log the error to bot.log
+Send a friendly error message to the user
+Collect a short traceback
+
+DM all admin IDs defined in ADMIN_IDS with:
+Guild and channel
+User and their ID
+Command name
+Error summary and traceback snippet
+This helps monitor failures without exposing stack traces to regular users. AS OF YET UNTESTED.
+
+Owner-Only Shutdown (!shutdown)
+For the bot owner only:
+
+!shutdown
+
+This sends a shutdown message, logs the event, and closes the bot cleanly.
 
 Asynchronous API Handling
 All Open5e API interactions use:
@@ -47,61 +151,20 @@ Spell levels → 1st-level, 2nd-level, Cantrip, etc.
 Material requirements (cost, consumed/not consumed)
 
 Setup Instructions
-1. Clone / Download the Project
-git clone https://github.com/RandyRadagast/RuleScribe
-
-cd rulescribe
-
-2. Create a Virtual Environment
-Windows
-python -m venv venv
-venv\Scripts\activate
-
-3. Install Dependencies
-pip install -U discord.py aiohttp python-dotenv
-
-4. Create a .env file inside the project folder:
-DISCORD_TOKEN=your-bot-token-goes-here
-
-5. Enable Privileged Intents
-Go to:
-https://discord.com/developers/applications
-Your Application → Bot → Privileged Gateway Intents
-Enable: 'MESSAGE CONTENT INTENT'
-Save changes.
-
-6. Run the Bot
-python bot.py
+Clone or download the repository.
+Create and activate a Python virtual environment.
+Install dependencies using pip.
+Create a .env file containing your Discord token.
+Enable the Message Content Intent in the Discord Developer Portal.
+Run the bot using “python bot.py”.
+The database will be initialized automatically on first startup.
+SQLite requires no additional installation on Windows or other platforms.
 
 
-Commands
-!roll <NdM>
-Rolls N dice of size M.
-Examples:
-!roll 1d20
-!roll 4d6
-Invalid formats are caught and return descriptive errors.
-
-!rule <query>
-Searches Open5e rules.
-Examples:
-!rule grapple
-!rule prone
-
-Returns the first matching rule result.
-
-!spell <query>
-Fetches and formats a spell entry with all metadata cleaned and displayed neatly.
-Example:
-!spell fireball
-!spell animate dead
 
 Error Handling
-All user input is wrapped in try/except blocks
-API failures send friendly messages to Discord
-Bot logs internal errors to console, NOT to users
-Invalid dice formats return guidance instead of crashing
-Spell/rule lookups fallback gracefully when data is missing
+The bot logs errors to “bot.log” and sends a simple user-facing error message when a command fails.
+A trimmed traceback should also be sent privately to any admin IDs listed in the script, allowing debugging without exposing internal details to users.
 
 License
 
