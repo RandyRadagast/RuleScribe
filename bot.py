@@ -151,12 +151,26 @@ def format_spell(spell: dict) -> str:
     # Join everything into ONE message string
     return "\n".join(lines)
 
+def extract_property_names(properties_list):
+    #extrace list of property names
+    names = []
+    for entry in properties_list:
+        prop = entry.get("property", {})
+        name = prop.get("name", "Unknown")
+        detail = entry.get("detail")
+        if detail:
+            names.append(f"{name} ({detail})")
+        else:
+            names.append(name)
+    return names
+
 
 #good stuff
 @bot.event
 async def on_ready():
     logging.info('We have logged in as {0.user}'.format(bot))
     logging.info('Here Be Dragons.')
+    print('Here Be Dragons.')
 
 
 # @bot.command(name='rshelp')
@@ -174,22 +188,6 @@ async def ping(ctx):
     await ctx.send('pong')
     logging.info('Ping ran successfully')
 
-#Debug mode
-@bot.command()
-async def debug_on(ctx):
-    logging.info('Debug on')
-    await ctx.send('Debug on')
-    global DEBUG
-    DEBUG = True
-@bot.command()
-async def debug_off(ctx):
-    logging.info('Debug off')
-    await ctx.send('Debug off')
-    global DEBUG
-    DEBUG = False
-
-#Debug code for copy-paste
-# if DEBUG: logging.debug(json.dumps(#######, indent=4))
 
 
 #dice roller
@@ -238,9 +236,6 @@ async def rule(ctx, *, query: str):
     logging.info(f'Called condition {name} successfully.')
 
 
-
-
-
 #spell lookup, this may get complicated...
 @bot.command(name='spell')
 async def spell(ctx, *, query: str):
@@ -256,18 +251,9 @@ async def spell(ctx, *, query: str):
                 return
             data = await response.json()
 
-    # -----------------------------------------------------
-    # SAVE RAW RESPONSE TO FILE
-    # -----------------------------------------------------
-    import json
-    with open("raw_spell.json", "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
 
-    logging.info("Wrote raw API response to raw_spell.json")
-    # -----------------------------------------------------
 
     results = data.get('results', [])
-    if DEBUG: logging.debug(json.dumps(results, indent=4))
     if not results:
         await ctx.send('No results found. Please verify spelling/format and try again.')
         logging.info(f'No results found for: {query}.')
@@ -278,5 +264,49 @@ async def spell(ctx, *, query: str):
     await ctx.send(message)
     logging.info(f'Queried {query} successfully as {spell.get('name')}.')
 
+
+#character data save TBA
+
+#Feat Lookup TBA
+
+
+#weapon stat lookup
+@bot.command(name = 'weapon')
+async def weapon(ctx, *, query: str):
+    await ctx.send(f'Locating {query} stats...')
+    url = 'https://api.open5e.com/weapons/?search=' + query
+    logging.info(f'Querying {query} from Open5e API.')
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            if response.status != 200:
+                await ctx.send('Something went wrong. Please try again in a few moments.')
+                logging.exception(response)
+                return
+            data = await response.json()
+
+
+
+    results = data.get('results', [])
+    if not results:
+        await ctx.send('No results found. Please verify spelling/format and try again.')
+        logging.info(f'No results found for: {query}.')
+        return
+
+    stats = results[0]
+    name = stats.get('name')
+    dDice = stats.get('damage_dice')
+    dType = stats.get('damage_type')
+    sRange = stats.get('range')
+    lRange = stats.get('long_range')
+    #check range
+    if sRange != None:
+        fRange = (f'range of {sRange} and long range of {lRange}')
+    else:
+        fRange = (f'Melee Range')
+    propNames = stats.get('properties')
+    propText = ", ".join(propNames) if propNames else "None"
+    await ctx.send(f'The {name} deals {dDice} {dType} damage with a {fRange}. This weapon also holds the following properties: {propText}')
+    logging.info(f'Called weapon {name} successfully.')
 
 bot.run(TOKEN)
