@@ -1,5 +1,5 @@
 #Created by Zachary T Meert
-
+import asyncio
 import os
 import random
 import textwrap
@@ -10,7 +10,10 @@ from dotenv import load_dotenv
 import aiohttp
 import re
 import logging
+import sqlite3
+from pathlib import Path
 
+ #bunches of setup
 logging.basicConfig(level=logging.INFO,
     format= '%(asctime)s [%(levelname)s] %(name)s: %(message)s',
     datefmt="%Y-%m-%d %H:%M:%S",
@@ -20,6 +23,10 @@ logging.basicConfig(level=logging.INFO,
 
 #Misc
 DEBUG = False
+ADMIN_IDS = {
+188166161756585985
+}
+availClasses = ['cleric', 'ranger', 'paladin', 'barbarian', 'warlock', 'artificer', 'rogue']
 
 #load token
 load_dotenv()
@@ -151,18 +158,38 @@ def format_spell(spell: dict) -> str:
     # Join everything into ONE message string
     return "\n".join(lines)
 
-def extract_property_names(properties_list):
-    #extrace list of property names
-    names = []
-    for entry in properties_list:
-        prop = entry.get("property", {})
-        name = prop.get("name", "Unknown")
-        detail = entry.get("detail")
-        if detail:
-            names.append(f"{name} ({detail})")
-        else:
-            names.append(name)
-    return names
+#setting up SQL DB, hopefully this goes to plan...
+DB_PATH = Path('PlayerCharacters.db')
+conn = sqlite3.connect(DB_PATH)
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # Create the characters table if it doesn't exist yet
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS characters (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            character_name TEXT NOT NULL,
+            class_name TEXT NOT NULL,
+            level INTEGER NOT NULL,
+            str_score INTEGER NOT NULL,
+            dex_score INTEGER NOT NULL,
+            con_score INTEGER NOT NULL,
+            int_score INTEGER NOT NULL,
+            wis_score INTEGER NOT NULL,
+            cha_score INTEGER NOT NULL
+        );
+    """)
+    conn.commit()
+    conn.close()
+
+
+
+
+def get_connection():
+    return sqlite3.connect(DB_PATH)
+
 
 
 #good stuff
@@ -172,9 +199,118 @@ async def on_ready():
     logging.info('Here Be Dragons.')
     print('Here Be Dragons.')
 
+@bot.command(name = 'info')
+async def info(ctx):
+    await ctx.send('RuleScribe is a helper bot for DND 5e using the Open5e API.\n'
+                   'This bot is a work in progress.\n'
+                   'Available commands are: `!help for in depth assistance with functions\n'
+                   '!addChar` to add a character to the database\n'
+                   '!delChar` to remove a character'
+                   '!roll to roll dice\n'
+                   '!spell to get spell details\n'
+                   '!weapon to get details on various weapons\n'
+                   '!condition to get details on conditions!\n')
 
-# @bot.command(name='rshelp')
-# async def rshelp(ctx, command = str):
+@bot.command(name = 'addchar')
+async def addChar(ctx, name: str, className: str):
+    logging.info('Beginning Character Function')
+    if className not in availClasses:
+        await ctx.send('Invalid Class Name. Please check spelling')
+        logging.info('Class name entry failed.')
+        return
+
+    await ctx.send(f'Adding {0} the {1}.\n'
+    'Please `reply` with this format\n'
+    '`level STR DEX CON INT WIS CHA`\n'
+    )
+
+    def check(message: discord.Message):
+        return (
+                message.author == ctx.author and
+                message.channel == ctx.channel)
+
+    #set wait
+    try:
+        reply: discord.Message = await bot.wait_for('message', check=check, timeout=60)
+    except asyncio.TimeoutError:
+        await ctx.send('Sorry, you took too long to respond. please run `!addchar` again')
+        logging.info('Add Character Timed Out.')
+        return
+
+    parts = reply.content.split()
+
+    #check length and verify int
+    if len(parts) != 7:
+        await ctx.send(f'7 numbers were expected, {len(parts)} were given. Add Character Failed. Please run `!addchar` again')
+        logging.info('Add Character Failed.')
+        return
+    try:
+        level, str_score, dex_score, con_score, int_score, wis_score, cha_score = map(int, parts)
+    except ValueError:
+        await ctx.send(
+            "All seven values must be **numbers**.\n"
+            "Example: `3 16 14 12 10 13 8`\n"
+            "Please run `!addchar` again."
+        )
+        return
+
+    #save to DB
+    userID = str(ctx.author.id)
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO characters (
+            user_id, character_name, class_name, level,
+            str_score, dex_score, con_score,
+            int_score, wis_score, cha_score
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        userID, name, className, level,
+        str_score, dex_score, con_score,
+        int_score, wis_score, cha_score
+    ))
+    conn.commit()
+    conn.close()
+
+    await ctx.send(f'Saved {name} the {className} successfully.')
+    logging.info('Saved {name} the {className} for {ctx.author.id} to DB successfully.')
+
+
+
+@bot.event
+async def on_command_error(ctx, error):
+    # Existing basic logging
+    logging.error(f"Command error in {ctx.command}: {error}")
+    # User-facing message
+    await ctx.send("Something went wrong running that command. The Machine Spirit has been notified.")
+    # Build a short error summary
+    tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+    short_tb = tb[-1500:]  # avoid super-long messages
+    # Notify admins via DM
+    for admin_id in ADMIN_IDS:
+        try:
+            admin_user = await bot.fetch_user(admin_id)
+            await admin_user.send(
+                f"**RuleScribe Error Alert**\n"
+                f"Guild: {ctx.guild.name if ctx.guild else 'DM'}\n"
+                f"Channel: {ctx.channel}\n"
+                f"User: {ctx.author} (ID: {ctx.author.id})\n"
+                f"Command: {ctx.command}\n"
+                f"Error: `{error}`\n"
+                f"Traceback:\n```py\n{short_tb}\n```"
+            )
+        except Exception as dm_err:
+            logging.error(f"Failed to DM admin {admin_id}: {dm_err}")
+
+
+@bot.command(name='rshelp')
+async def rshelp(ctx, rshelp = str):
+    if rshelp == 'roll':
+        await ctx.send("The roll function allows for rolling of dice in the following format: Number of dice + d + Sides on dice. Example follows:")
+        await ctx.send('!roll 1d20')
+    elif rshelp == 'ping':
+        await ctx.send("The ping function allows for ping to the bot. it will pong in response.")
 
 #error catch-most failures
 @bot.event
@@ -187,8 +323,6 @@ async def on_command_error(ctx, error):
 async def ping(ctx):
     await ctx.send('pong')
     logging.info('Ping ran successfully')
-
-
 
 #dice roller
 @bot.command(name='roll')
@@ -309,4 +443,14 @@ async def weapon(ctx, *, query: str):
     await ctx.send(f'The {name} deals {dDice} {dType} damage with a {fRange}. This weapon also holds the following properties: {propText}')
     logging.info(f'Called weapon {name} successfully.')
 
-bot.run(TOKEN)
+
+@commands.is_owner()
+@bot.command(name="shutdown")
+async def shutdown(ctx):
+    await ctx.send("Shutting down the Machine Spirit…")
+    logging.info('Shutdown complete.')
+    await bot.close()
+
+if __name__ == "__main__":
+    init_db()
+    bot.run(TOKEN)
