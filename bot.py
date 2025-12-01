@@ -12,6 +12,7 @@ import re
 import logging
 import sqlite3
 from pathlib import Path
+import traceback
 
  #bunches of setup
 logging.basicConfig(level=logging.INFO,
@@ -187,6 +188,7 @@ def init_db():
 def get_connection():
     return sqlite3.connect(DB_PATH)
 
+
 #good stuff
 @bot.event
 async def on_ready():
@@ -271,18 +273,17 @@ async def addChar(ctx, name: str, className: str):
     await ctx.send(f'Saved {name} the {className} successfully.')
     logging.info('Saved {name} the {className} for {ctx.author.id} to DB successfully.')
 
-
-
 @bot.event
 async def on_command_error(ctx, error):
-    # Existing basic logging
     logging.error(f"Command error in {ctx.command}: {error}")
-    # User-facing message
-    await ctx.send("Something went wrong running that command. The Machine Spirit has been notified.")
-    # Build a short error summary
+
+    await ctx.send("Something went wrong running that command.")
+
+    # Build traceback
     tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
-    short_tb = tb[-1500:]  # avoid super-long messages
-    # Notify admins via DM
+    short_tb = tb[-1500:]
+
+    # DM admins
     for admin_id in ADMIN_IDS:
         try:
             admin_user = await bot.fetch_user(admin_id)
@@ -299,11 +300,11 @@ async def on_command_error(ctx, error):
             logging.error(f"Failed to DM admin {admin_id}: {dm_err}")
 
 
+
 @bot.command(name='rshelp')
 async def rshelp(ctx, topic: str):
     if topic == 'roll':
         await ctx.send("The roll function allows for rolling of dice in the following format: Number of dice + d + Sides on dice. Example follows:")
-        await ctx.send('!roll 1d20')
     elif topic == 'ping':
         await ctx.send("The ping function allows for ping to the bot. it will pong in response.")
     elif topic == 'addchar':
@@ -317,12 +318,6 @@ async def rshelp(ctx, topic: str):
     else:
         await ctx.send('Unknown Topic or nonexistent function.')
 
-#error catch-most failures
-@bot.event
-async def on_command_error(ctx, error):
-    logging.error(f"Command error in {ctx.command}: {error}")
-    await ctx.send("Something went wrong running that command.")
-
 #test ping
 @bot.command()
 async def ping(ctx):
@@ -331,7 +326,10 @@ async def ping(ctx):
 
 #dice roller
 @bot.command(name='roll')
-async def roll(ctx, dice: str):
+async def roll(ctx, dice: str = None):
+    if dice is None:
+        await ctx.send('You must specify a dice roll. Format: !roll NdM ex. !roll 1d20 or !roll 4d6')
+        return
     #check for valid formatting and assign groups for later RanNum
     try:
         match = re.fullmatch(r'(\d+)d?(\d+)?', dice)
@@ -342,15 +340,18 @@ async def roll(ctx, dice: str):
         sides = int(match.group(2))
         rolls = [random.randint(1, sides) for _ in range(number)]
         total = sum(rolls)
-        await ctx.send(f'You rolled {number} d{sides} with total {total}.')
-        logging.info(f'Rolled {number} d{sides} with total {total}')
+        await ctx.send(f'You rolled {number} D{sides} with total {total}.')
+        logging.info(f'Rolled {number} D{sides} with total {total}')
     except Exception as e:
         await ctx.send('Something went wrong. Please verify format. (ex. 4D20, 6D6)')
         logging.exception(e)
 
 #rule Lookup
 @bot.command(name='condition')
-async def rule(ctx, *, query: str):
+async def rule(ctx, *, query: str = None):
+    if query is None:
+        await ctx.send('You must specify a condition. Format: !condition (Condition Query) ex. !condition grapple or !condition incapacitated')
+        return
     await ctx.send('Querying condition rules...')
 
     url = 'https://api.open5e.com/conditions/?search=' + query
@@ -377,7 +378,9 @@ async def rule(ctx, *, query: str):
 
 #spell lookup, this may get complicated...
 @bot.command(name='spell')
-async def spell(ctx, *, query: str):
+async def spell(ctx, *, query: str = None):
+    if query is None:
+        await ctx.send('You must specify a spell. Format: !spell (Spell Query) ex. !spell Aid or !spell Fireball')
     await ctx.send('Querying spell rules...')
     url = 'https://api.open5e.com/spells/?search=' + query
     logging.info(f'Querying {query} from Open5e API.')
@@ -412,7 +415,9 @@ async def spell(ctx, *, query: str):
 
 #weapon stat lookup
 @bot.command(name = 'weapon')
-async def weapon(ctx, *, query: str):
+async def weapon(ctx, *, query: str = None):
+    if query is None:
+        await ctx.send('You must specify a weapon. Format: !weapon (weapon). ex. !weapon club or !weapon shortbow')
     await ctx.send(f'Locating {query} stats...')
     url = 'https://api.open5e.com/weapons/?search=' + query
     logging.info(f'Querying {query} from Open5e API.')
@@ -424,8 +429,6 @@ async def weapon(ctx, *, query: str):
                 logging.exception(response)
                 return
             data = await response.json()
-
-
 
     results = data.get('results', [])
     if not results:
@@ -453,6 +456,9 @@ async def weapon(ctx, *, query: str):
 @commands.is_owner()
 @bot.command(name="shutdown")
 async def shutdown(ctx):
+    if ctx.author.id not in ADMIN_IDS and not await bot.is_owner(ctx.author):
+        await ctx.send('You are not authorized to do that Tech Priest.')
+        return
     await ctx.send("Shutting down the Machine Spirit…")
     logging.info('Shutdown complete.')
     await bot.close()
