@@ -3,6 +3,8 @@ import asyncio
 import os
 import random
 import textwrap
+from idlelib import query
+
 import discord
 from discord.ext import commands
 from discord.ext.commands import bot
@@ -200,13 +202,13 @@ async def on_ready():
 async def info(ctx):
     await ctx.send('RuleScribe is a helper bot for DND 5e using the Open5e API.\n'
                    'This bot is a work in progress.\n'
-                   'Available commands are: `!help for in depth assistance with functions\n'
-                   '!addChar` to add a character to the database\n'
-                   '!delChar` to remove a character'
-                   '!roll to roll dice\n'
-                   '!spell to get spell details\n'
-                   '!weapon to get details on various weapons\n'
-                   '!condition to get details on conditions!\n')
+                   'Available commands are: \n'
+                   '`!help(function)` for in depth assistance with functions\n'
+                   '`!addChar (CharName)(Class)`\n'
+                   '`!roll (query)`\n'
+                   '`!spell (query)`\n'
+                   '`!weapon (query)`\n'
+                   '`!condition (query)`\n')
 
 @bot.command(name = 'addchar')
 async def addChar(ctx, name: str, className: str):
@@ -328,7 +330,7 @@ async def ping(ctx):
 @bot.command(name='roll')
 async def roll(ctx, dice: str = None):
     if dice is None:
-        await ctx.send('You must specify a dice roll. Format: !roll NdM ex. !roll 1d20 or !roll 4d6')
+        await ctx.send('You must specify a dice roll. Format: !roll NdM ex. `!roll 1d20` or `!roll 4d6`')
         return
     #check for valid formatting and assign groups for later RanNum
     try:
@@ -350,7 +352,7 @@ async def roll(ctx, dice: str = None):
 @bot.command(name='condition')
 async def rule(ctx, *, query: str = None):
     if query is None:
-        await ctx.send('You must specify a condition. Format: !condition (Condition Query) ex. !condition grapple or !condition incapacitated')
+        await ctx.send('You must specify a condition. Format: `!condition (Condition Query)` ex. `!condition grapple` or `!condition incapacitated`')
         return
     await ctx.send('Querying condition rules...')
 
@@ -380,7 +382,8 @@ async def rule(ctx, *, query: str = None):
 @bot.command(name='spell')
 async def spell(ctx, *, query: str = None):
     if query is None:
-        await ctx.send('You must specify a spell. Format: !spell (Spell Query) ex. !spell Aid or !spell Fireball')
+        await ctx.send('You must specify a spell. Format: `!spell (Spell Query)` ex. `!spell Aid` or `!spell Fireball`')
+        return
     await ctx.send('Querying spell rules...')
     url = 'https://api.open5e.com/spells/?search=' + query
     logging.info(f'Querying {query} from Open5e API.')
@@ -393,19 +396,46 @@ async def spell(ctx, *, query: str = None):
                 return
             data = await response.json()
 
-
-
     results = data.get('results', [])
     if not results:
         await ctx.send('No results found. Please verify spelling/format and try again.')
         logging.info(f'No results found for: {query}.')
         return
+#check for exact spell match
+    queryNormalized = query.strip().lower()
+    exactMatch = [s for s in results if s.get('name', '').strip().lower() == queryNormalized]
 
-    spell = results[0]
-    message = format_spell(spell)
-    await ctx.send(message)
-    spellName = spell.get('name')
-    logging.info(f"Queried {query} successfully as {spellName}.")
+    if exactMatch:
+        chosen = exactMatch[0]
+        message = format_spell(chosen)
+        await ctx.send(message)
+        spell_name = chosen.get('name', 'Unknown Spell')
+        logging.info(f"Queried {query} successfully as exact match {spell_name}.")
+        return
+
+    candidate = results[0]
+    candidateName = candidate.get('name', 'Unknown Spell')
+    await ctx.send(f'I did not find an exact match for {query}. Closest match is {candidateName}. Reply `yes` to use this spell, or `no` to cancel')
+
+    def check(message:discord.Message):
+        return (message.author == ctx.author and message.channel == ctx.channel)
+
+    try:
+        reply: discord.Message = await bot.wait_for('message', check=check, timeout=30)
+    except asyncio.TimeoutError:
+        await ctx.send('times out waiting for confirmation. Please try `!spell (query)` again with a more specific name.')
+        logging.info('Timeout waiting for confirmation.')
+        return
+
+    content = reply.content.strip().lower()
+    print(content)
+    if content in ('yes', 'y'):
+        message = format_spell(candidate)
+        await ctx.send(message)
+        logging.info(f'Queried {candidateName} Successfully.')
+    else:
+        await ctx.send('Acknowledged. Canceling lookup.')
+        logging.info(f'User declined lookup for {candidateName}. Canceling lookup.')
 
 
 #character data save TBA
@@ -456,18 +486,20 @@ async def weapon(ctx, *, query: str = None):
 @commands.is_owner()
 @bot.command(name="shutdown")
 async def shutdown(ctx):
-    if ctx.author.id not in ADMIN_IDS and not await bot.is_owner(ctx.author):
-        await ctx.send('You are not authorized to do that Tech Priest.')
-        return
     await ctx.send("Shutting down the Machine Spirit…")
     logging.info('Shutdown complete.')
     await bot.close()
 
 @bot.command(name='update')
 async def update(ctx):
-    if ctx.author.id not in ADMIN_IDS or not await bot.is_owner(ctx.author):
-        await ctx.send('You are not authorized to do that Tech Priest.')
+    isAdmin = ctx.author.id in ADMIN_IDS
+    isAppOwner = await bot.is_owner(ctx.author)
+    isGuildOwner = (ctx.guild is not None and ctx.author.id == ctx.guild.owner_id)
+
+    if not (isAdmin or isAppOwner or isGuildOwner):
+        await ctx.send('You are not authorized to do that, Tech Priest.')
         return
+
     await ctx.send('Convening with the Source...')
     logging.info('Pulling update from Github')
 
