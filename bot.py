@@ -490,6 +490,21 @@ async def shutdown(ctx):
     logging.info('Shutdown complete.')
     await bot.close()
 
+@bot.command(name="whoami")
+async def whoami(ctx):
+    isAdmin      = ctx.author.id in ADMIN_IDS
+    isAppOwner   = await bot.is_owner(ctx.author)
+    isGuildOwner = (ctx.guild is not None and ctx.author.id == ctx.guild.owner_id)
+
+    await ctx.send(
+        "Debug info:\n"
+        f"Your ID: `{ctx.author.id}`\n"
+        f"isAdmin: `{isAdmin}`\n"
+        f"isAppOwner: `{isAppOwner}`\n"
+        f"isGuildOwner: `{isGuildOwner}`\n"
+        f"ADMIN_IDS: `{ADMIN_IDS}`"
+    )
+
 @bot.command(name='update')
 async def update(ctx):
     isAdmin = ctx.author.id in ADMIN_IDS
