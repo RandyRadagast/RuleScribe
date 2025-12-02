@@ -3,8 +3,6 @@ import asyncio
 import os
 import random
 import textwrap
-from idlelib import query
-
 import discord
 from discord.ext import commands
 from discord.ext.commands import bot
