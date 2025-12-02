@@ -27,7 +27,8 @@ logging.basicConfig(level=logging.INFO,
 #Misc
 DEBUG = False
 ADMIN_IDS = {188166161756585985,#self
-             188167154661588992 #oddish
+             188167154661588992, #oddish
+             351101839586099201 #terrance
              }
 availClasses = ['cleric', 'ranger', 'paladin', 'barbarian', 'warlock', 'artificer', 'rogue']
 
