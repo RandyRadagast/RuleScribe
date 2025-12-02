@@ -26,9 +26,9 @@ logging.basicConfig(level=logging.INFO,
 
 #Misc
 DEBUG = False
-ADMIN_IDS = {
-188166161756585985
-}
+ADMIN_IDS = {188166161756585985,#self
+             188167154661588992 #oddish
+             }
 availClasses = ['cleric', 'ranger', 'paladin', 'barbarian', 'warlock', 'artificer', 'rogue']
 
 #load token
