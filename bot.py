@@ -13,6 +13,9 @@ import logging
 import sqlite3
 from pathlib import Path
 import traceback
+from rapidfuzz import fuzz
+from version import BOT_VERSION
+
 
  #bunches of setup
 logging.basicConfig(level=logging.INFO,
@@ -37,6 +40,8 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
+
+
 
 
 def format_spell(spell: dict) -> str:
@@ -159,6 +164,47 @@ def format_spell(spell: dict) -> str:
     # Join everything into ONE message string
     return "\n".join(lines)
 
+#fuzzy search functionality
+def getAttributeOrKey(item, key:str):
+    if isinstance(item, dict):
+        return item.get(key, '')
+    return getattr(item, key, '')
+
+def buildFuzzy(query:str, items, *, key:str = 'name', cutoff:int = 55):
+    logging.info(f"Building Fuzzy {query}")
+    q = (query or '').strip().lower()
+    if not q: return [], []
+    exactMatches = []
+    scored = []
+    processedNames = set()
+    logging.info(f'Fuzzy "{query}" prepared, starting...')
+    for item in items:
+        rawValue = getAttributeOrKey(item, key)
+        name = str(rawValue.strip().lower())
+
+        #dedupe
+        if not name:
+            continue
+        if name == q:
+            exactMatches.append(item)
+        elif name in processedNames:
+            continue
+        processedNames.add(name)
+
+        #fuzzy score
+        score = fuzz.partial_ratio(q, name)
+        scored.append((score, item))
+    logging.info(f'Fuzzy "{query}" done.')
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    rankedCandidates = [item for score, item in scored if score >= cutoff]
+    logging.info(f'Returning organized list.{len(exactMatches)} Exact Results, {len(rankedCandidates)} Fuzzy results.')
+    return exactMatches, rankedCandidates
+
+
+
+
+
 #setting up SQL DB, hopefully this goes to plan...
 DB_PATH = Path('PlayerCharacters.db')
 conn = sqlite3.connect(DB_PATH)
@@ -201,12 +247,14 @@ async def info(ctx):
     await ctx.send('RuleScribe is a helper bot for DND 5e using the Open5e API.\n'
                    'This bot is a work in progress.\n'
                    'Available commands are: \n'
-                   '`!help(function)` for in depth assistance with functions\n'
+                   '`!rshelp(function)` for in depth assistance with functions\n'
                    '`!addChar (CharName)(Class)`\n'
                    '`!roll (query)`\n'
                    '`!spell (query)`\n'
                    '`!weapon (query)`\n'
-                   '`!condition (query)`\n')
+                   '`!condition (query)`\n'
+                   'More functions are on their way!'
+                   )
 
 @bot.command(name = 'addchar')
 async def addChar(ctx, name: str, className: str):
@@ -216,17 +264,14 @@ async def addChar(ctx, name: str, className: str):
         await ctx.send('Invalid Class Name. Please check spelling')
         logging.info('Class name entry failed.')
         return
-
     await ctx.send(f'Adding {0} the {1}.\n'
     'Please `reply` with this format\n'
     '`level STR DEX CON INT WIS CHA`\n'
     )
-
     def check(message: discord.Message):
         return (
                 message.author == ctx.author and
                 message.channel == ctx.channel)
-
     #set wait
     try:
         reply: discord.Message = await bot.wait_for('message', check=check, timeout=60)
@@ -234,9 +279,7 @@ async def addChar(ctx, name: str, className: str):
         await ctx.send('Sorry, you took too long to respond. please run `!addchar` again')
         logging.info('Add Character Timed Out.')
         return
-
     parts = reply.content.split()
-
     #check length and verify int
     if len(parts) != 7:
         await ctx.send(f'7 numbers were expected, {len(parts)} were given. Add Character Failed. Please run `!addchar` again')
@@ -251,7 +294,6 @@ async def addChar(ctx, name: str, className: str):
             "Please run `!addchar` again."
         )
         return
-
     #save to DB
     userID = str(ctx.author.id)
     conn = get_connection()
@@ -379,7 +421,7 @@ async def rule(ctx, *, query: str = None):
 
 
 #spell lookup, this may get complicated...
-@bot.command(name='spell')
+@bot.command(name='spell', aliases=['s'])
 async def spell(ctx, *, query: str = None):
     if query is None:
         await ctx.send('You must specify a spell. Format: `!spell (Spell Query)` ex. `!spell Aid` or `!spell Fireball`')
@@ -396,15 +438,16 @@ async def spell(ctx, *, query: str = None):
                 return
             data = await response.json()
 
+    logging.info(f'Query {query} succeeded. Moving on...')
     results = data.get('results', [])
     if not results:
         await ctx.send('No results found. Please verify spelling/format and try again.')
-        logging.info(f'No results found for: {query}.')
+        logging.info(f'No results found for: {query}. Stopping !spell query.')
         return
-#check for exact spell match
-    queryNormalized = query.strip().lower()
-    exactMatch = [s for s in results if s.get('name', '').strip().lower() == queryNormalized]
 
+#fuzzy wuzzy
+    logging.info('Loading Fuzzy Filter...')
+    exactMatch, candidates = buildFuzzy(query, results, key = 'name', cutoff=55)
     if exactMatch:
         chosen = exactMatch[0]
         message = format_spell(chosen)
@@ -412,37 +455,50 @@ async def spell(ctx, *, query: str = None):
         spell_name = chosen.get('name', 'Unknown Spell')
         logging.info(f"Queried {query} successfully as exact match {spell_name}.")
         return
-
-    candidate = results[0]
-    candidateName = candidate.get('name', 'Unknown Spell')
-    await ctx.send(f'I did not find an exact match for {query}. Closest match is {candidateName}. Reply `yes` to use this spell, or `no` to cancel')
-
     def check(message:discord.Message):
-        return (message.author == ctx.author and message.channel == ctx.channel)
+        return (message.author == ctx.author and message.channel == ctx.channel and message.content.lower() in ('y', 'yes', 'n', 'no', 'stop', 's', 'cancel'))
+    total = len(candidates)
 
-    try:
-        reply: discord.Message = await bot.wait_for('message', check=check, timeout=30)
-    except asyncio.TimeoutError:
-        await ctx.send('times out waiting for confirmation. Please try `!spell (query)` again with a more specific name.')
-        logging.info('Timeout waiting for confirmation.')
-        return
+    logging.info("Wrote raw API response to raw_spell.json")
 
-    content = reply.content.strip().lower()
-    print(content)
-    if content in ('yes', 'y'):
-        message = format_spell(candidate)
-        await ctx.send(message)
-        logging.info(f'Queried {candidateName} Successfully.')
-    else:
-        await ctx.send('Acknowledged. Canceling lookup.')
-        logging.info(f'User declined lookup for {candidateName}. Canceling lookup.')
+    for idx, candidate in enumerate(candidates, start=1):
+        candidateName = candidate.get('name', 'Unknown Spell')
+
+        await ctx.send(f'I did not find an exact match for {query}. Closest match is {candidateName}. Reply `yes` to use this spell, `no` to move to the next result, or `stop` to cancel lookup')
+        logging.info(f'No exact match found for {query}. Waiting 30s for user input...')
+        try:
+            reply: discord.Message = await bot.wait_for('message', check=check, timeout=30)
+        except asyncio.TimeoutError:
+            await ctx.send('Timed out waiting for confirmation. Please try `!spell (query)` again with a more specific name.')
+            logging.info('Timeout waiting for confirmation.')
+            return
+        content = reply.content.strip().lower()
+
+        if content in ('yes', 'y'):
+            message = format_spell(candidate)
+            await ctx.send(message)
+            logging.info(f'Queried {candidateName} Successfully.')
+            return
+        elif content in ('stop', 'cancel', 's'):
+            await ctx.send(f'Canceling Search for {query}.')
+            logging.info('User stopped search.')
+            return
+        else:
+            if idx < total:
+                await ctx.send('Okay, Checking the next result.')
+            else:
+                await ctx.send('No more results. Please try `!spell (query)` again with a more specific name.')
+                logging.info(f'User declined all available results from {query}')
+                return
+
+#TODO Feat Lookup
+
+#TODO character data update
+
+#TODO Character Delete
 
 
-#character data save TBA
-
-#Feat Lookup TBA
-
-
+#TODO add fuzzy search to weapons
 #weapon stat lookup
 @bot.command(name = 'weapon', aliases=['wep, w'])
 async def weapon(ctx, *, query: str = None):
@@ -523,6 +579,10 @@ async def update(ctx):
     await ctx.send('Machine Spirit restarting...')
     logging.info('Restarting RuleScribe')
     os.system('sudo systemctl restart rulescribe')
+
+@bot.command(name='version', aliases=['versions', 'v'])
+async def version(ctx):
+    await ctx.send(f'Rulescribe Version {BOT_VERSION}')
 
 if __name__ == "__main__":
     init_db()
