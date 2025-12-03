@@ -211,6 +211,7 @@ async def info(ctx):
 @bot.command(name = 'addchar')
 async def addChar(ctx, name: str, className: str):
     logging.info('Beginning Character Function')
+    className = className.lower()
     if className not in availClasses:
         await ctx.send('Invalid Class Name. Please check spelling')
         logging.info('Class name entry failed.')
@@ -325,14 +326,15 @@ async def ping(ctx):
     logging.info('Ping ran successfully')
 
 #dice roller
-@bot.command(name='roll')
+@bot.command(name='roll', aliases=['r'])
 async def roll(ctx, dice: str = None):
     if dice is None:
         await ctx.send('You must specify a dice roll. Format: !roll NdM ex. `!roll 1d20` or `!roll 4d6`')
         return
     #check for valid formatting and assign groups for later RanNum
+    dice = dice.lower()
     try:
-        match = re.fullmatch(r'(\d+)d?(\d+)?', dice)
+        match = re.fullmatch(r'(\d+)[dD](\d+)?', dice)
         if not match:
             raise ValueError('Invalid format')
 
@@ -442,7 +444,7 @@ async def spell(ctx, *, query: str = None):
 
 
 #weapon stat lookup
-@bot.command(name = 'weapon')
+@bot.command(name = 'weapon', aliases=['wep, w'])
 async def weapon(ctx, *, query: str = None):
     if query is None:
         await ctx.send('You must specify a weapon. Format: !weapon (weapon). ex. !weapon club or !weapon shortbow')
@@ -489,6 +491,7 @@ async def shutdown(ctx):
     await bot.close()
 
 @bot.command(name="whoami")
+#for debugging purposes, Unlisted.
 async def whoami(ctx):
     isAdmin      = ctx.author.id in ADMIN_IDS
     isAppOwner   = await bot.is_owner(ctx.author)
