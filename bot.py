@@ -161,8 +161,67 @@ def format_spell(spell: dict) -> str:
         lines.append("")
         lines.append(desc_short)
 
-    # Join everything into ONE message string
+    # Join everything into one message string
     return "\n".join(lines)
+
+def rangeProps(properties):
+    #find range properties, embedded in 'properties' under 'ammunition'
+    logging.info('Evaluating Range Properties')
+
+    if not properties:
+        logging.info('No Properties found')
+        return None
+    pattern = re.compile(r"range\s*(\d+)\s*/\s*(\d+)", re.IGNORECASE)
+    for prop in properties:
+        if not isinstance(prop, str):
+            continue
+        match = pattern.search(prop)
+        if match:
+            range = int(match.group(1))
+            long_range = int(match.group(2))
+            logging.info('Returning short and long range.')
+            return range, long_range
+    logging.info('No Range Properties found')
+    return None
+
+def format_weapon(weapon: dict) -> str:
+    # stats = results[0]
+    logging.info('Beginning Weapon formatting...')
+    lines = []
+    lines.append(f'{weapon.get('name')}')
+    lines.append(f'Damage: {weapon.get('damage_dice')} {weapon.get("damage_type")}')
+
+    # check range
+    props = weapon.get("properties") or []
+    propsLower = [p.lower() for p in props]
+
+    logging.info('Checking Range Information...')
+    rangeInfo = rangeProps(props)
+    if rangeInfo:
+        range, long_range = rangeInfo
+
+    if rangeInfo:
+        if any('thrown' in p for p in propsLower):
+            lines.append('Melee 5ft\n'
+                         f'Thrown: Short range{range}\n'
+                         f'Thrown: Long range{long_range}\n')
+        elif any('ammunition' in p for p in propsLower):
+            lines.append(f"Range: {range}")
+            lines.append(f"Long range: {long_range}")
+    elif any('reach' in p for p in propsLower):
+        lines.append('10ft Melee Range')
+    else:
+        lines.append("5ft Melee Range")
+
+    logging.info('Building Properties...')
+    propNames = weapon.get('properties')
+    lines.append("Properties:")
+    lines.append(", ".join(propNames) if propNames else "None")
+
+    logging.info('Weapon formatting complete.')
+    return '\n'.join(lines)
+
+
 
 #fuzzy search functionality
 def getAttributeOrKey(item, key:str):
@@ -200,10 +259,6 @@ def buildFuzzy(query:str, items, *, key:str = 'name', cutoff:int = 55):
     rankedCandidates = [item for score, item in scored if score >= cutoff]
     logging.info(f'Returning organized list.{len(exactMatches)} Exact Results, {len(rankedCandidates)} Fuzzy results.')
     return exactMatches, rankedCandidates
-
-
-
-
 
 #setting up SQL DB, hopefully this goes to plan...
 DB_PATH = Path('PlayerCharacters.db')
@@ -316,6 +371,27 @@ async def addChar(ctx, name: str, className: str):
     await ctx.send(f'Saved {name} the {className} successfully.')
     logging.info('Saved {name} the {className} for {ctx.author.id} to DB successfully.')
 
+#TODO character data update
+@bot.command(name = 'updatechar')
+async def updateChar(ctx):
+    logging.info('Beginning Update Character Function')
+    conn = get_connection()
+    cursor = conn.cursor()
+
+
+
+
+    cursor.execute()
+
+    conn.commit()
+    conn.close()
+
+#TODO Character Delete
+@bot.command(name = 'deletechar')
+async def deleteChar(ctx):
+    logging.info('Beginning Delete Character Function')
+
+
 @bot.event
 async def on_command_error(ctx, error):
     logging.error(f"Command error in {ctx.command}: {error}")
@@ -341,8 +417,6 @@ async def on_command_error(ctx, error):
             )
         except Exception as dm_err:
             logging.error(f"Failed to DM admin {admin_id}: {dm_err}")
-
-
 
 @bot.command(name='rshelp')
 async def rshelp(ctx, topic: str):
@@ -493,12 +567,8 @@ async def spell(ctx, *, query: str = None):
 
 #TODO Feat Lookup
 
-#TODO character data update
-
-#TODO Character Delete
 
 
-#TODO add fuzzy search to weapons
 #weapon stat lookup
 @bot.command(name = 'weapon', aliases=['wep, w'])
 async def weapon(ctx, *, query: str = None):
@@ -508,6 +578,7 @@ async def weapon(ctx, *, query: str = None):
     url = 'https://api.open5e.com/weapons/?search=' + query
     logging.info(f'Querying {query} from Open5e API.')
 
+
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             if response.status != 200:
@@ -516,27 +587,65 @@ async def weapon(ctx, *, query: str = None):
                 return
             data = await response.json()
 
+
     results = data.get('results', [])
     if not results:
         await ctx.send('No results found. Please verify spelling/format and try again.')
         logging.info(f'No results found for: {query}.')
         return
 
-    stats = results[0]
-    name = stats.get('name')
-    dDice = stats.get('damage_dice')
-    dType = stats.get('damage_type')
-    sRange = stats.get('range')
-    lRange = stats.get('long_range')
-    #check range
-    if sRange != None:
-        fRange = (f'range of {sRange} and long range of {lRange}')
-    else:
-        fRange = (f'Melee Range')
-    propNames = stats.get('properties')
-    propText = ", ".join(propNames) if propNames else "None"
-    await ctx.send(f'The {name} deals {dDice} {dType} damage with a {fRange}. This weapon also holds the following properties: {propText}')
-    logging.info(f'Called weapon {name} successfully.')
+    import json
+    with open("raw_spell.json", "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+
+    logging.info("Wrote raw API response to raw_spell.json")
+
+
+    logging.info('Loading Fuzzy Filter...')
+    exactMatch, candidates = buildFuzzy(query, results, key='name', cutoff=55)
+
+    if exactMatch:
+        chosen = exactMatch[0]
+        message = format_weapon(chosen)
+        await ctx.send(message)
+        weapon_name = chosen.get('name', 'Unknown Weapon')
+        logging.info(f"Queried {query} successfully as exact match {weapon_name}.")
+        return
+    def check(message:discord.Message):
+        return (message.author == ctx.author and message.channel == ctx.channel and message.content.lower() in ('y', 'yes', 'n', 'no', 'stop', 's', 'cancel'))
+    total = len(candidates)
+
+
+    for idx, candidate in enumerate(candidates, start=1):
+        candidateName = candidate.get('name', 'Unknown weapon')
+
+        await ctx.send(f'I did not find an exact match for `{query}`. Closest match is {candidateName}. Reply `yes` to query this weapon, `no` to move to the next result, or `stop` to cancel lookup')
+        logging.info(f'No exact match found for {query}. Waiting 30s for user input...')
+        try:
+            reply: discord.Message = await bot.wait_for('message', check=check, timeout=30)
+        except asyncio.TimeoutError:
+            await ctx.send('Timed out waiting for confirmation. Please try `!weapon (query)` again with a more specific name.')
+            logging.info('Timeout waiting for user confirmation.')
+            return
+        content = reply.content.strip().lower()
+
+        if content in ('yes', 'y'):
+            message = format_weapon(candidate)
+            await ctx.send(message)
+            logging.info(f'Queried {candidateName} Successfully.')
+            return
+        elif content in ('stop', 'cancel', 's'):
+            await ctx.send(f'Canceling Search for {query}.')
+            logging.info('User stopped search.')
+            return
+        else:
+            if idx < total:
+                await ctx.send('Okay, Checking the next result.')
+            else:
+                await ctx.send('No more results. Please try `!weapon (query)` again with a more specific name.')
+                logging.info(f'User declined all available results from {query}')
+                return
+    logging.info(f'Queried weapon {query} successfully.')
 
 
 @commands.is_owner()
