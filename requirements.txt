@@ -1,6 +1,7 @@
 #The following are the required libraries for this bot to run. Good Luck!
 discord.py
 aiohttp
-python_dotenv
+python-dotenv
 sqlite3
 logging
+rapidfuzz

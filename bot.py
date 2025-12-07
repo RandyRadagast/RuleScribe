@@ -678,9 +678,12 @@ async def update(ctx):
         return
 
     await ctx.send('Convening with the Source...')
-    logging.info('Pulling update from Github')
-
+    logging.info('Pulling update from Github - master branch')
+    os.system('git checkout master')
     os.system('git pull')
+    logging.info('Pulling installing requirements...')
+    os.system('pip install -r requirements.txt')
+
     await ctx.send('Machine Spirit restarting...')
     logging.info('Restarting RuleScribe')
     os.system('sudo systemctl restart rulescribe')
