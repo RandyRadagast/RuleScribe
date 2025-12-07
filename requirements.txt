@@ -1,0 +1,6 @@
+#The following are the required libraries for this bot to run. Good Luck!
+discord.py
+aiohttp
+python_dotenv
+sqlite3
+logging

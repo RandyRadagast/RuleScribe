@@ -30,7 +30,7 @@ DEBUG = False
 ADMIN_IDS = {188166161756585985,#self
              188167154661588992, #oddish
              }
-availClasses = ['cleric', 'ranger', 'paladin', 'barbarian', 'warlock', 'artificer', 'rogue']
+availClasses = ['cleric', 'wizard', 'bard', 'fighter', 'sorcerer', 'ranger', 'paladin', 'barbarian', 'warlock', 'artificer', 'rogue', 'druid']
 
 #load token
 load_dotenv()
@@ -40,8 +40,6 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
-
-
 
 
 def format_spell(spell: dict) -> str:
@@ -221,8 +219,6 @@ def format_weapon(weapon: dict) -> str:
     logging.info('Weapon formatting complete.')
     return '\n'.join(lines)
 
-
-
 #fuzzy search functionality
 def getAttributeOrKey(item, key:str):
     if isinstance(item, dict):
@@ -386,10 +382,23 @@ async def updateChar(ctx):
     conn.commit()
     conn.close()
 
-#TODO Character Delete
+#Character Delete
 @bot.command(name = 'deletechar')
-async def deleteChar(ctx):
-    logging.info('Beginning Delete Character Function')
+async def deleteChar(ctx, *, characterName: str):
+    logging.info(f'Beginning Delete Character Function for {characterName}')
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""DELETE FROM characters WHERE user_id = ? AND character_name = ?""", (ctx.author.id, characterName))
+    changes = cursor.rowcount
+
+    if changes > 0:
+        await ctx.send(f'Character {characterName} has been deleted.')
+    else:
+        await ctx.send(f'Character {characterName} does not exist.')
+    conn.commit()
+    conn.close()
+
 
 
 @bot.event
