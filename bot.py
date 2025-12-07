@@ -189,7 +189,7 @@ def format_weapon(weapon: dict) -> str:
     logging.info('Beginning Weapon formatting...')
     lines = []
     lines.append(f"{weapon.get('name')}")
-    lines.append(f"Damage: {weapon.get('damage_dice')} {weapon.get("damage_type")}")
+    lines.append(f"Damage: {weapon.get('damage_dice')} {weapon.get('damage_type')}")
 
     # check range
     props = weapon.get("properties") or []
