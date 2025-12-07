@@ -2,6 +2,8 @@
 import asyncio
 import os
 import random
+import subprocess
+import sys
 import textwrap
 import discord
 from discord.ext import commands
@@ -665,6 +667,8 @@ async def whoami(ctx):
         f"isGuildOwner: `{isGuildOwner}`\n"
     )
 
+#more durable update command
+scribeTower = Path(__file__).resolve().parent
 @bot.command(name='update', help = 'Updates the bot. -Requires permissions')
 async def update(ctx):
     """Updates the bot from Repo and reboots.
@@ -674,19 +678,45 @@ async def update(ctx):
     isGuildOwner = (ctx.guild is not None and ctx.author.id == ctx.guild.owner_id)
 
     if not (isAdmin or isAppOwner or isGuildOwner):
-        await ctx.send('You are not authorized to do that, Tech Priest.')
+        await ctx.send('You are not authorized to do that.')
         return
 
     await ctx.send('Convening with the Source...')
     logging.info('Pulling update from Github - master branch')
-    os.system('git checkout master')
-    os.system('git pull')
-    logging.info('Pulling installing requirements...')
-    os.system('pip install -r requirements.txt')
 
-    await ctx.send('Machine Spirit restarting...')
-    logging.info('Restarting RuleScribe')
-    os.system('sudo systemctl restart rulescribe')
+    try:
+        result = subprocess.run(['git', 'checkout', 'master'], cwd=str(scribeTower), capture_output=True, text=True, check=True)
+        logging.info(result.stdout)
+        logging.info(result.stderr)
+    except subprocess.CalledProcessError as e:
+        await ctx.send('Could not pull update from Github. See Logs.')
+        logging.error(e.stderr)
+        return
+    try:
+        result = subprocess.run(['git', 'pull'], cwd=str(scribeTower), capture_output=True, text=True, check=True)
+        logging.info(result.stdout)
+        logging.info(result.stderr)
+    except subprocess.CalledProcessError as e:
+        await ctx.send('Could not pull update from Github. See Logs.')
+        logging.error(e.stderr)
+        return
+
+    logging.info('Successfully pulled update from Github Repository - master branch.')
+    await ctx.send('Installing Dependencies...')
+    logging.info('Installing Dependencies...')
+    try:
+        result = subprocess.run([sys.executable, '-m', 'pip', 'install', 'requirements.txt'], cwd=str(scribeTower), capture_output=True, text=True, check=True)
+        logging.info(result.stdout)
+        logging.info(result.stderr)
+    except subprocess.CalledProcessError as e:
+        await ctx.send('Could not install dependencies. See Logs.')
+        logging.error(e.stderr)
+        return
+    logging.info('Successfully installed dependencies.')
+    await ctx.send('Restarting RuleScribe...')
+    logging.info('Restarting RuleScribe...')
+    os._exit(0)
+
 
 @bot.command(name='version', aliases=['versions', 'v'], help = 'Shows the current version of the bot.')
 async def version(ctx):

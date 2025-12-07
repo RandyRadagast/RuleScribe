@@ -2,6 +2,5 @@
 discord.py
 aiohttp
 python-dotenv
-sqlite3
 logging
 rapidfuzz
