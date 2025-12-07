@@ -293,21 +293,12 @@ async def on_ready():
     logging.info('Here Be Dragons.')
     print('Here Be Dragons.')
 
-@bot.command(name = 'info')
+@bot.command(name = 'info', help = 'Description of bot')
 async def info(ctx):
     await ctx.send('RuleScribe is a helper bot for DND 5e using the Open5e API.\n'
-                   'This bot is a work in progress.\n'
-                   'Available commands are: \n'
-                   '`!rshelp(function)` for in depth assistance with functions\n'
-                   '`!addChar (CharName)(Class)`\n'
-                   '`!roll (query)`\n'
-                   '`!spell (query)`\n'
-                   '`!weapon (query)`\n'
-                   '`!condition (query)`\n'
-                   'More functions are on their way!'
-                   )
+                   f'Current Version: {BOT_VERSION}\n')
 
-@bot.command(name = 'addchar')
+@bot.command(name = 'addchar', help = 'Add a character to the Player Database')
 async def addChar(ctx, name: str, className: str):
     logging.info('Beginning Character Function')
     className = className.lower()
@@ -368,7 +359,7 @@ async def addChar(ctx, name: str, className: str):
     logging.info('Saved {name} the {className} for {ctx.author.id} to DB successfully.')
 
 #TODO character data update
-@bot.command(name = 'updatechar')
+@bot.command(name = 'updatechar', help = 'Update a character in the Player Database - Currently nonfunctional -')
 async def updateChar(ctx):
     logging.info('Beginning Update Character Function')
     conn = get_connection()
@@ -383,7 +374,7 @@ async def updateChar(ctx):
     conn.close()
 
 #Character Delete
-@bot.command(name = 'deletechar')
+@bot.command(name = 'deletechar', help = 'Delete your character from the Player Database')
 async def deleteChar(ctx, *, characterName: str):
     logging.info(f'Beginning Delete Character Function for {characterName}')
     conn = get_connection()
@@ -398,8 +389,6 @@ async def deleteChar(ctx, *, characterName: str):
         await ctx.send(f'Character {characterName} does not exist.')
     conn.commit()
     conn.close()
-
-
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -427,22 +416,6 @@ async def on_command_error(ctx, error):
         except Exception as dm_err:
             logging.error(f"Failed to DM admin {admin_id}: {dm_err}")
 
-@bot.command(name='rshelp')
-async def rshelp(ctx, topic: str):
-    if topic == 'roll':
-        await ctx.send("The roll function allows for rolling of dice in the following format: Number of dice + d + Sides on dice. Example follows:")
-    elif topic == 'ping':
-        await ctx.send("The ping function allows for ping to the bot. it will pong in response.")
-    elif topic == 'addchar':
-        await ctx.send('addchar function adds a player character to the database. to run use `!addchar (Character Name) (Class)`')
-    elif topic == 'condition':
-        await ctx.send('Condition function returns a brief description of the condition. To run use: `!condition (condition query)`')
-    elif topic == 'spell':
-        await ctx.send('Spell function returns most descriptors of a spell. To run use: `!spell (spell query)`')
-    elif topic == 'weapon':
-        await ctx.send('Weapon function returns weapon damage, ranges, and properties. To run use: `!weapon (Weapon Name)`')
-    else:
-        await ctx.send('Unknown Topic or nonexistent function.')
 
 #test ping
 @bot.command()
@@ -451,8 +424,10 @@ async def ping(ctx):
     logging.info('Ping ran successfully')
 
 #dice roller
-@bot.command(name='roll', aliases=['r'])
+@bot.command(name='roll', aliases=['r'], help = 'Roll X dice with Y sides, get result')
 async def roll(ctx, dice: str = None):
+    """Roll X dice with Y sides, get result
+    Format:XDY (ex. 4D20, 6d6, 9D30)"""
     if dice is None:
         await ctx.send('You must specify a dice roll. Format: !roll NdM ex. `!roll 1d20` or `!roll 4d6`')
         return
@@ -474,8 +449,10 @@ async def roll(ctx, dice: str = None):
         logging.exception(e)
 
 #rule Lookup
-@bot.command(name='condition')
+@bot.command(name='condition', help = 'This function returns a brief description of the condition.')
 async def rule(ctx, *, query: str = None):
+    """Lookup a condition and get a brief description, truncated if too long.
+    Format: !condition (condition query)"""
     if query is None:
         await ctx.send('You must specify a condition. Format: `!condition (Condition Query)` ex. `!condition grapple` or `!condition incapacitated`')
         return
@@ -504,8 +481,11 @@ async def rule(ctx, *, query: str = None):
 
 
 #spell lookup, this may get complicated...
-@bot.command(name='spell', aliases=['s'])
+@bot.command(name='spell', aliases=['s'], help = 'This function returns a rundown of the queried spell.')
 async def spell(ctx, *, query: str = None):
+    """Lookup a spell and get a rundown of the queried spell
+    Format: !spell (spell query) or !s (spell query) are accepted"""
+
     if query is None:
         await ctx.send('You must specify a spell. Format: `!spell (Spell Query)` ex. `!spell Aid` or `!spell Fireball`')
         return
@@ -579,8 +559,10 @@ async def spell(ctx, *, query: str = None):
 
 
 #weapon stat lookup
-@bot.command(name = 'weapon', aliases=['wep, w'])
+@bot.command(name = 'weapon', aliases=['wep, w'], help = 'This function returns a rundown of the queried weapon.')
 async def weapon(ctx, *, query: str = None):
+    """Lookup a weapon and get stats returned back.
+    Format: !weapon (weapon query) or !w (weapon query) are accepted"""
     if query is None:
         await ctx.send('You must specify a weapon. Format: !weapon (weapon). ex. !weapon club or !weapon shortbow')
     await ctx.send(f'Locating {query} stats...')
@@ -658,15 +640,19 @@ async def weapon(ctx, *, query: str = None):
 
 
 @commands.is_owner()
-@bot.command(name="shutdown")
+@bot.command(name="shutdown", help = "Shuts down the bot. -Requires permissions")
 async def shutdown(ctx):
+    """Shuts down the bot.
+    Channel Owner permissions are required."""
     await ctx.send("Shutting down the Machine Spirit…")
     logging.info('Shutdown complete.')
     await bot.close()
 
-@bot.command(name="whoami")
-#for debugging purposes, Unlisted.
+@bot.command(name="whoami", help = "Shows you the current user's name and permissions.")
+#for debugging purposes
 async def whoami(ctx):
+    """Shows you the current user's name and permissions.
+    For Debug purposes"""
     isAdmin      = ctx.author.id in ADMIN_IDS
     isAppOwner   = await bot.is_owner(ctx.author)
     isGuildOwner = (ctx.guild is not None and ctx.author.id == ctx.guild.owner_id)
@@ -677,11 +663,12 @@ async def whoami(ctx):
         f"isAdmin: `{isAdmin}`\n"
         f"isAppOwner: `{isAppOwner}`\n"
         f"isGuildOwner: `{isGuildOwner}`\n"
-        f"ADMIN_IDS: `{ADMIN_IDS}`"
     )
 
-@bot.command(name='update')
+@bot.command(name='update', help = 'Updates the bot. -Requires permissions')
 async def update(ctx):
+    """Updates the bot from Repo and reboots.
+    Channel Owner or App Owner permissions are required."""
     isAdmin = ctx.author.id in ADMIN_IDS
     isAppOwner = await bot.is_owner(ctx.author)
     isGuildOwner = (ctx.guild is not None and ctx.author.id == ctx.guild.owner_id)
@@ -698,7 +685,7 @@ async def update(ctx):
     logging.info('Restarting RuleScribe')
     os.system('sudo systemctl restart rulescribe')
 
-@bot.command(name='version', aliases=['versions', 'v'])
+@bot.command(name='version', aliases=['versions', 'v'], help = 'Shows the current version of the bot.')
 async def version(ctx):
     await ctx.send(f'Rulescribe Version {BOT_VERSION}')
 
