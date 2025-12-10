@@ -425,6 +425,12 @@ async def ping(ctx):
     await ctx.send('pong')
     logging.info('Ping ran successfully')
 
+#test ping
+@bot.command()
+async def pong(ctx):
+    await ctx.send('Why you need this i do not know. but here you go... PING!')
+    logging.info('Pong ran successfully')
+
 #dice roller
 @bot.command(name='roll', aliases=['r'], help = 'Roll X dice with Y sides, get result')
 async def roll(ctx, dice: str = None):
@@ -613,7 +619,7 @@ async def weapon(ctx, *, query: str = None):
         candidateName = candidate.get('name', 'Unknown weapon')
 
         await ctx.send(f'I did not find an exact match for `{query}`. Closest match is {candidateName}. Reply `yes` to query this weapon, `no` to move to the next result, or `stop` to cancel lookup')
-        logging.info(f'No exact match found for {query}. Waiting 30s for user input...')
+        logging.info(f'No match found for {query}. Waiting 30s for user input...')
         try:
             reply: discord.Message = await bot.wait_for('message', check=check, timeout=30)
         except asyncio.TimeoutError:
