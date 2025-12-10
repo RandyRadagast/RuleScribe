@@ -2,5 +2,4 @@
 discord.py
 aiohttp
 python-dotenv
-logging
 rapidfuzz
