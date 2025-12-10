@@ -711,7 +711,7 @@ async def update(ctx):
     await ctx.send('Installing Dependencies...')
     logging.info('Installing Dependencies...')
     try:
-        result = subprocess.run([sys.executable, '-m', 'pip', 'install', 'requirements.txt'], cwd=str(scribeTower), capture_output=True, text=True, check=True)
+        result = subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'], cwd=str(scribeTower), capture_output=True, text=True, check=True)
         logging.info(result.stdout)
         logging.info(result.stderr)
     except subprocess.CalledProcessError as e:
