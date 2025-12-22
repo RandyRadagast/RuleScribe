@@ -1,0 +1,17 @@
+Future Plans:
+The following features are planned for future versions:
+
+MAJOR/Large:
+Complete rewrite of all commands to modern slash (/) commands.
+Encounter generation using Challenge Rating (CR) mechanic based on "party" average level
+Add "REPLY" to each responding function
+Monster Stat lookup (possible two versions, 1 short and one in depth)
+
+
+
+MINOR/Small:
+Include additional tag for party number/name (1 DM + x Characters Players)
+Personal Character listing command (possible send DM to player to not clutter primary channels)
+Character info lookup (list ability scores, class features, and chosen Feats)
+Feat information lookup
+Inventory listings attached to character records

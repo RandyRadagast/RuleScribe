@@ -428,7 +428,7 @@ async def ping(ctx):
 #test ping
 @bot.command()
 async def pong(ctx):
-    await ctx.send('Why you need this i do not know. but here you go... PING!')
+    await ctx.send('Why you need this, I do not know. but here you go... PING!')
     logging.info('Pong ran successfully')
 
 #dice roller
@@ -563,8 +563,6 @@ async def spell(ctx, *, query: str = None):
                 return
 
 #TODO Feat Lookup
-
-
 
 #weapon stat lookup
 @bot.command(name = 'weapon', aliases=['wep, w'], help = 'This function returns a rundown of the queried weapon.')
