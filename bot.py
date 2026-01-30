@@ -46,11 +46,14 @@ class RuleScribe(commands.Bot):
 
     async def setup_hook(self):
         init_db()
+        logging.info("Database setup complete")
         #Load Cogs!!
         await self.load_extension('Cogs.RollDice')
+        logging.info("Cog setup complete")
 
         #sync slash commands
         await self.tree.sync()
+        logging.info("sync setup complete")
 bot = RuleScribe()
 
 
