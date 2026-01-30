@@ -45,14 +45,14 @@ class RuleScribe(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
+        init_db()
         #Load Cogs!!
         await self.load_extension('Cogs.RollDice')
 
         #sync slash commands
         await self.tree.sync()
-
 bot = RuleScribe()
-bot.run(os.getenv('DISCORD_TOKEN'))
+
 
 @bot.event
 async def on_ready():
@@ -748,5 +748,4 @@ async def version(ctx):
     await ctx.send(f'Rulescribe Version {BOT_VERSION}')
 
 if __name__ == "__main__":
-    init_db()
-    bot.run(TOKEN)
+    bot.run(os.getenv('DISCORD_TOKEN'))
