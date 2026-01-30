@@ -8,6 +8,7 @@ import textwrap
 import discord
 from discord.ext import commands
 from discord.ext.commands import bot
+from discord import app_commands
 from dotenv import load_dotenv
 import aiohttp
 import re
@@ -36,12 +37,32 @@ availClasses = ['cleric', 'wizard', 'bard', 'fighter', 'sorcerer', 'ranger', 'pa
 
 #load token
 load_dotenv()
-TOKEN = os.getenv('DISCORD_TOKEN')
 
-#intents
-intents = discord.Intents.default()
-intents.message_content = True
-bot = commands.Bot(command_prefix='!', intents=intents)
+
+class RuleScribe(commands.Bot):
+    def __init__(self):
+        intents = discord.Intents.default()
+        intents.members = True
+        super().__init__(command_prefix="!", intents=intents)
+
+    async def setup_hook(self):
+        #Load Cogs!!
+        await self.load_extension('Cogs.RollDice')
+
+        #sync slash commands
+        await self.tree.sync()
+
+bot = RuleScribe()
+
+@bot.event
+async def on_ready():
+    logging.info('Logged in as {0.user}'.format(bot))
+    print('Bot Awakens as')
+    print(bot.user.name)
+    print(bot.user.id)
+    print('Here be Dragons.')
+
+bot.run(os.getenv('DISCORD_TOKEN'))
 
 
 def format_spell(spell: dict) -> str:
@@ -432,29 +453,29 @@ async def pong(ctx):
     logging.info('Pong ran successfully')
 
 #dice roller
-@bot.command(name='roll', aliases=['r'], help = 'Roll X dice with Y sides, get result')
-async def roll(ctx, dice: str = None):
-    """Roll X dice with Y sides, get result
-    Format:XDY (ex. 4D20, 6d6, 9D30)"""
-    if dice is None:
-        await ctx.send('You must specify a dice roll. Format: !roll NdM ex. `!roll 1d20` or `!roll 4d6`')
-        return
-    #check for valid formatting and assign groups for later RanNum
-    dice = dice.lower()
-    try:
-        match = re.fullmatch(r'(\d+)[dD](\d+)?', dice)
-        if not match:
-            raise ValueError('Invalid format')
-
-        number = int(match.group(1))
-        sides = int(match.group(2))
-        rolls = [random.randint(1, sides) for _ in range(number)]
-        total = sum(rolls)
-        await ctx.send(f'You rolled {number} D{sides} with total {total}.')
-        logging.info(f'Rolled {number} D{sides} with total {total}')
-    except Exception as e:
-        await ctx.send('Something went wrong. Please verify format. (ex. 4D20, 6D6)')
-        logging.exception(e)
+# @bot.command(name='roll', aliases=['r'], help = 'Roll X dice with Y sides, get result')
+# async def roll(ctx, dice: str = None):
+#     """Roll X dice with Y sides, get result
+#     Format:XDY (ex. 4D20, 6d6, 9D30)"""
+#     if dice is None:
+#         await ctx.send('You must specify a dice roll. Format: !roll NdM ex. `!roll 1d20` or `!roll 4d6`')
+#         return
+#     #check for valid formatting and assign groups for later RanNum
+#     dice = dice.lower()
+#     try:
+#         match = re.fullmatch(r'(\d+)[dD](\d+)?', dice)
+#         if not match:
+#             raise ValueError('Invalid format')
+#
+#         number = int(match.group(1))
+#         sides = int(match.group(2))
+#         rolls = [random.randint(1, sides) for _ in range(number)]
+#         total = sum(rolls)
+#         await ctx.send(f'You rolled {number} D{sides} with total {total}.')
+#         logging.info(f'Rolled {number} D{sides} with total {total}')
+#     except Exception as e:
+#         await ctx.send('Something went wrong. Please verify format. (ex. 4D20, 6D6)')
+#         logging.exception(e)
 
 #rule Lookup
 @bot.command(name='condition', help = 'This function returns a brief description of the condition.')
