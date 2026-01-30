@@ -25,5 +25,5 @@ class RollDice(commands.Cog):
         await interaction.response.send_message(f'You rolled {result.number}d{result.sides}/n'
         f'Results: {result.rolls} = {result.total}')
 
-    async def setup(bot):
-        await bot.add_cog(RollDice(bot))
+async def setup(bot):
+    await bot.add_cog(RollDice(bot))
