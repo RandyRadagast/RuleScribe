@@ -37,7 +37,7 @@ availClasses = ['cleric', 'wizard', 'bard', 'fighter', 'sorcerer', 'ranger', 'pa
 
 #load token
 load_dotenv()
-
+bot.run(os.getenv('DISCORD_TOKEN'))
 
 class RuleScribe(commands.Bot):
     def __init__(self):
@@ -62,7 +62,7 @@ async def on_ready():
     print(bot.user.id)
     print('Here be Dragons.')
 
-bot.run(os.getenv('DISCORD_TOKEN'))
+
 
 
 def format_spell(spell: dict) -> str:
