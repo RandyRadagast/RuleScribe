@@ -686,10 +686,10 @@ async def update(ctx):
         return
 
     await ctx.send('Convening with the Source...')
-    logging.info('Pulling update from Github - master branch')
+    logging.info('Pulling update from Github - public branch')
 
     try:
-        result = subprocess.run(['git', 'checkout', 'master'], cwd=str(scribeTower), capture_output=True, text=True, check=True)
+        result = subprocess.run(['git', 'checkout', 'public'], cwd=str(scribeTower), capture_output=True, text=True, check=True)
         logging.info(result.stdout)
         logging.info(result.stderr)
     except subprocess.CalledProcessError as e:
@@ -705,7 +705,7 @@ async def update(ctx):
         logging.error(e.stderr)
         return
 
-    logging.info('Successfully pulled update from Github Repository - master branch.')
+    logging.info('Successfully pulled update from Github Repository - public branch.')
     await ctx.send('Installing Dependencies...')
     logging.info('Installing Dependencies...')
     try:
