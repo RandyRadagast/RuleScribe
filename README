@@ -82,7 +82,7 @@ All dependencies are listed in requirements.txt and can be installed automatical
 Setup Instructions (Local and VM):
 
 Clone the repository
-git clone https://github.com/RandyRadagast/RuleScribe/tree/master
+git clone https://github.com/RandyRadagast/RuleScribe/tree/public
 cd RuleScribe
 
 Create and activate a virtual environment
